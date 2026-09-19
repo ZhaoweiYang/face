@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# copied from node_modules by scripts/copy-wasm.mjs on install
+public/mediapipe/
+.DS_Store
+*.log
+public/__test/

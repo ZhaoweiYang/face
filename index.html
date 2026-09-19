@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>照片变 3D 人脸 · 眨眼 / 张嘴 / 左看 / 右看</title>
+    <meta name="description" content="上传一张人像照片，在浏览器里生成可以动的 3D 人脸，一键眨眼、张嘴、左看、右看。" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🙂%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <aside class="panel">
+        <header class="brand">
+          <h1>照片 → 3D 人脸</h1>
+          <p>上传一张正面人像，浏览器本地生成可动的 3D 版本。照片不会上传到任何服务器。</p>
+        </header>
+
+        <section class="block">
+          <label id="dropzone" class="dropzone" for="file-input">
+            <input id="file-input" type="file" accept="image/*" hidden />
+            <div class="dropzone-inner">
+              <div class="dropzone-icon">📷</div>
+              <div class="dropzone-title">点击或拖拽照片到这里</div>
+              <div class="dropzone-sub">支持 JPG / PNG / WebP，建议正面、光线充足</div>
+            </div>
+          </label>
+          <div id="status" class="status" role="status" aria-live="polite">正在加载人脸模型…</div>
+        </section>
+
+        <section class="block">
+          <h2>快捷动作</h2>
+          <div class="actions">
+            <button id="act-blink" class="btn btn-action" type="button" disabled>
+              <span class="btn-icon">😉</span><span>眨眼</span>
+            </button>
+            <button id="act-mouth" class="btn btn-action" type="button" disabled>
+              <span class="btn-icon">😮</span><span>张嘴</span>
+            </button>
+            <button id="act-left" class="btn btn-action" type="button" disabled>
+              <span class="btn-icon">👀</span><span>左看</span>
+            </button>
+            <button id="act-right" class="btn btn-action" type="button" disabled>
+              <span class="btn-icon">👀</span><span>右看</span>
+            </button>
+          </div>
+          <div class="row">
+            <button id="act-demo" class="btn" type="button" disabled>自动演示</button>
+            <button id="act-reset" class="btn" type="button" disabled>复位</button>
+          </div>
+          <p class="hint">张嘴 / 左看 / 右看 再点一次即可恢复。键盘：<kbd>1</kbd> 眨眼 <kbd>2</kbd> 张嘴 <kbd>←</kbd> 左看 <kbd>→</kbd> 右看</p>
+        </section>
+
+        <section class="block">
+          <h2>微调</h2>
+          <label class="slider">
+            <span>立体强度</span>
+            <input id="sl-depth" type="range" min="0" max="3" step="0.05" value="1.4" disabled />
+            <output id="out-depth">1.4</output>
+          </label>
+          <label class="slider">
+            <span>张嘴幅度</span>
+            <input id="sl-mouth" type="range" min="0.04" max="0.26" step="0.01" value="0.14" disabled />
+            <output id="out-mouth">0.14</output>
+          </label>
+          <label class="slider">
+            <span>眼睛闭合</span>
+            <input id="sl-blink" type="range" min="0" max="1" step="0.01" value="0" disabled />
+            <output id="out-blink">0.00</output>
+          </label>
+          <label class="slider">
+            <span>视线方向</span>
+            <input id="sl-look" type="range" min="-1" max="1" step="0.01" value="0" disabled />
+            <output id="out-look">0.00</output>
+          </label>
+          <div class="row checks">
+            <label><input id="ck-wire" type="checkbox" /> 显示网格</label>
+            <label><input id="ck-sway" type="checkbox" checked /> 自动转动</label>
+          </div>
+          <div class="row">
+            <button id="act-snapshot" class="btn btn-ghost" type="button" disabled>导出截图 PNG</button>
+          </div>
+        </section>
+
+        <footer class="foot">
+          基于 MediaPipe Face Landmarker + three.js，全部在本地运行。
+        </footer>
+      </aside>
+
+      <main id="stage" class="stage">
+        <div id="stage-empty" class="stage-empty">
+          <div class="stage-empty-icon">🙂</div>
+          <div>上传照片后，这里会出现你的 3D 人脸</div>
+          <div class="stage-empty-sub">拖动旋转 · 滚轮缩放</div>
+        </div>
+        <div id="stage-loading" class="stage-loading" hidden>
+          <div class="spinner"></div>
+          <div id="stage-loading-text">正在识别人脸…</div>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

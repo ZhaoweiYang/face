@@ -1,0 +1,23 @@
+{
+  "name": "face3d",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "上传照片生成可动的 3D 人脸：眨眼、张嘴、左看、右看",
+  "scripts": {
+    "postinstall": "node scripts/copy-wasm.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  }
+}
