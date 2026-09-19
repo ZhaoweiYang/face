@@ -55,6 +55,9 @@ export class Viewer {
 
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(() => this.resize()).observe(container);
+    }
     this.renderer.setAnimationLoop(() => this.frame());
   }
 

@@ -50,6 +50,8 @@ export interface ExpressionParams {
   mouthAmplitude: number;
   /** How much the head turns along with the gaze (0 = eyes only, 1 = full). */
   headTurn: number;
+  /** Lip shape: -1 = rounded / puckered ("wu"), 0 = neutral, +1 = spread ("yi"). */
+  mouthShape: number;
 }
 
 export const DEFAULT_PARAMS: ExpressionParams = {
@@ -59,6 +61,7 @@ export const DEFAULT_PARAMS: ExpressionParams = {
   depth: 1.4,
   mouthAmplitude: 0.14,
   headTurn: 1,
+  mouthShape: 0,
 };
 
 interface EyeRig {
@@ -75,6 +78,10 @@ interface EyeRig {
 interface MouthRig {
   /** Full-open delta v per vertex (index -> delta in face-size units). */
   delta: Map<number, number>;
+  /** Horizontal weight per vertex for spreading (+) / puckering (-) the lips. */
+  spread: Map<number, number>;
+  /** Forward-push weight per vertex when the lips pucker. */
+  pucker: Map<number, number>;
 }
 
 const YAW_MAX = (16 * Math.PI) / 180;
@@ -336,7 +343,25 @@ export class FaceModel {
       const d = wv * wh;
       if (Math.abs(d) > 1e-4) delta.set(i, d);
     }
-    return { delta };
+    // Lip shape: vertices near the mouth move horizontally toward (pucker) or
+    // away from (spread) the mouth centre, strongest at the corners, fading
+    // with vertical distance from the mouth line.
+    const spread = new Map<number, number>();
+    const pucker = new Map<number, number>();
+    for (let i = 0; i < this.deformCount; i++) {
+      const p = this.baseFrame(i);
+      const dx = (p.x - mid.x) / halfWidth;
+      const dy = Math.abs(p.y - mid.y) / S;
+      const vert = 1 - smoothstep(0.04, 0.16, dy);
+      if (vert <= 1e-3) continue;
+      const horiz = Math.sign(dx) * smoothstep(0, 1, Math.abs(dx)) * (1 - smoothstep(1.2, 2.2, Math.abs(dx)));
+      const w = horiz * vert;
+      if (Math.abs(w) > 1e-3) spread.set(i, w);
+      const inner = lipSet.has(i) || this.teethVerts.includes(i) ? 1 : 1 - smoothstep(0.6, 1.6, Math.abs(dx));
+      const pz = vert * inner;
+      if (pz > 1e-3) pucker.set(i, pz);
+    }
+    return { delta, spread, pucker };
   }
 
   // ---- deformation ---------------------------------------------------------------
@@ -404,6 +429,16 @@ export class FaceModel {
     if (mouth > 0) {
       const amount = mouth * params.mouthAmplitude * S;
       for (const [i, d] of this.mouth.delta) frame[i * 2 + 1] += d * amount;
+    }
+    const shape = clamp(params.mouthShape, -1, 1);
+    if (shape !== 0) {
+      const dx = shape * 0.07 * S;
+      for (const [i, w] of this.mouth.spread) frame[i * 2] += w * dx;
+      if (shape < 0) {
+        // Puckered lips protrude toward the camera (negative z = closer).
+        const dz = (-shape * 0.035 * S) / W;
+        for (const [i, w] of this.mouth.pucker) work[i * 3 + 2] -= w * dz;
+      }
     }
 
     // Back to image units.
