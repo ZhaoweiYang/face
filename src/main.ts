@@ -4,6 +4,8 @@ import { detectFace, getLandmarker } from "./landmarker";
 import { Viewer } from "./viewer";
 import { Tweener, easeOut } from "./tween";
 import { DIGIT_NAMES, DIGIT_VISEMES } from "./visemes";
+import * as api from "./api";
+import { VideoPlayer } from "./videoPlayer";
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id);
@@ -42,10 +44,39 @@ const ckWire = $<HTMLInputElement>("ck-wire");
 const ckSway = $<HTMLInputElement>("ck-sway");
 const ckVoice = $<HTMLInputElement>("ck-voice");
 const toolbar = $("toolbar");
+const genBox = $("gen");
+const genLabel = $("gen-label");
+const genPct = $("gen-pct");
+const genFill = $("gen-fill");
+const modeBox = $("mode");
+const modeVideoBtn = $<HTMLButtonElement>("mode-video");
+const mode3dBtn = $<HTMLButtonElement>("mode-3d");
+const engineLine = $("engine");
+const media = $("media");
 const btnFullscreen = $<HTMLButtonElement>("btn-fullscreen");
 const digitOverlay = $("digit-overlay");
 
 const viewer = new Viewer(stage);
+const player = new VideoPlayer(media);
+
+// "3d": real-time mesh warping (instant). "video": pre-rendered AI clips.
+type Mode = "3d" | "video";
+let mode: Mode = "3d";
+let serverEngine: string | null = null;
+let genAbort: AbortController | null = null;
+
+function setMode(next: Mode): void {
+  if (next === "video" && !player.ready) return;
+  mode = next;
+  media.hidden = next !== "video";
+  modeVideoBtn.classList.toggle("active", next === "video");
+  mode3dBtn.classList.toggle("active", next === "3d");
+  if (next === "3d") player.stop();
+  else stopSpeaking();
+  syncOutputs();
+}
+modeVideoBtn.addEventListener("click", () => setMode("video"));
+mode3dBtn.addEventListener("click", () => setMode("3d"));
 const params: ExpressionParams = { ...DEFAULT_PARAMS };
 const tween = new Tweener(params, () => {
   viewer.update(params);
@@ -123,9 +154,15 @@ function downscale(img: HTMLImageElement, max: number): HTMLCanvasElement {
 let busy = false;
 let lastLandmarks: Landmark[] | null = null;
 
-async function processImage(src: string, label: string): Promise<void> {
+async function processImage(src: string, label: string, blob?: Blob): Promise<void> {
   if (busy) return;
   busy = true;
+  genAbort?.abort();
+  genAbort = null;
+  genBox.hidden = true;
+  modeBox.hidden = true;
+  player.clear();
+  setMode("3d");
   stageLoading.hidden = false;
   stageLoadingText.textContent = "正在识别人脸…";
   setStatus(`正在处理 ${label}…`);
@@ -151,6 +188,10 @@ async function processImage(src: string, label: string): Promise<void> {
     setEnabled(true);
     syncOutputs();
     setStatus(`已生成 3D 人脸（${landmarks.length} 个特征点）。试试快捷动作，或按数字键让它读数字。`, "ok");
+    if (serverEngine) {
+      const source = blob ?? (await fetch(src).then((r) => r.blob()).catch(() => null));
+      if (source) void generateClips(source, label);
+    }
   } catch (err) {
     console.error(err);
     setStatus(`处理失败：${(err as Error).message ?? err}`, "err");
@@ -167,7 +208,7 @@ function handleFile(file: File | undefined | null): void {
     return;
   }
   const url = URL.createObjectURL(file);
-  processImage(url, file.name).finally(() => URL.revokeObjectURL(url));
+  processImage(url, file.name, file).finally(() => URL.revokeObjectURL(url));
 }
 
 fileInput.addEventListener("change", () => {
@@ -198,9 +239,64 @@ document.addEventListener("paste", (e) => {
   if (item) handleFile(item.getAsFile());
 });
 
+// ---- AI clip generation --------------------------------------------------------
+
+const CLIP_LABELS: Record<string, string> = {
+  prepare: "分析人脸",
+  blink: "眨眼",
+  mouth: "张嘴",
+  left: "左看",
+  right: "右看",
+};
+
+function clipLabel(name: string | null | undefined): string {
+  if (!name) return "";
+  if (name.startsWith("digit_")) return `数字 ${name.slice(6)}`;
+  return CLIP_LABELS[name] ?? name;
+}
+
+async function generateClips(blob: Blob, label: string): Promise<void> {
+  const ctrl = new AbortController();
+  genAbort = ctrl;
+  genBox.hidden = false;
+  genLabel.textContent = "上传到 AI 视频引擎…";
+  genPct.textContent = "0%";
+  genFill.style.width = "0%";
+  try {
+    const { job_id } = await api.submit(blob, label);
+    const job = await api.waitForJob(
+      job_id,
+      (j) => {
+        const pct = Math.round((j.progress ?? 0) * 100);
+        genPct.textContent = `${pct}%`;
+        genFill.style.width = `${pct}%`;
+        genLabel.textContent =
+          j.status === "queued" ? "排队等待 GPU…" : `AI 视频生成中 · ${clipLabel(j.current) || "…"}`;
+      },
+      ctrl.signal,
+    );
+    if (ctrl.signal.aborted) return;
+    genLabel.textContent = "加载视频片段…";
+    await player.load(job);
+    if (ctrl.signal.aborted) return;
+    genBox.hidden = true;
+    modeBox.hidden = false;
+    setMode("video");
+    setStatus("AI 视频版已就绪：动作由神经网络重演，更自然。可随时切回即时 3D。", "ok");
+  } catch (err) {
+    if (ctrl.signal.aborted) return;
+    console.error(err);
+    genBox.hidden = true;
+    setStatus(`AI 视频生成失败，已保留即时 3D：${(err as Error).message ?? err}`, "err");
+  } finally {
+    if (genAbort === ctrl) genAbort = null;
+  }
+}
+
 // ---- expression actions ------------------------------------------------------
 
 async function blink(): Promise<void> {
+  if (mode === "video") return player.play("blink");
   await tween.to("blink", 1, 110, easeOut);
   await new Promise((r) => setTimeout(r, 70));
   await tween.to("blink", 0, 170);
@@ -208,16 +304,22 @@ async function blink(): Promise<void> {
 
 function toggleMouth(): Promise<void> {
   stopSpeaking();
+  if (mode === "video") return player.play("mouth");
   return tween.to("mouth", params.mouth > 0.5 ? 0 : 1, 260);
 }
 
 function look(dir: number): Promise<void> {
+  if (mode === "video") return player.play(dir === LOOK_LEFT ? "left" : "right");
   const target = Math.abs(params.look - dir) < 0.05 ? 0 : dir;
   return tween.to("look", target, 380);
 }
 
 function reset(): void {
   stopSpeaking();
+  if (mode === "video") {
+    player.stop();
+    return;
+  }
   tween.to("blink", 0, 200);
   tween.to("mouth", 0, 200);
   tween.to("mouthShape", 0, 200);
@@ -232,6 +334,11 @@ async function demo(): Promise<void> {
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
   try {
     reset();
+    if (mode === "video") {
+      await player.playSequence(["blink", "mouth", "left", "right", "blink"]);
+      await speakDigits("2024");
+      return;
+    }
     await wait(350);
     await blink();
     await wait(300);
@@ -300,9 +407,27 @@ function showDigits(all: string, index: number): void {
 }
 
 /** Plays the mouth animation (and optional voice) for a string of digits. */
+let videoDigits = "";
+let videoDigitIndex = 0;
+player.onClipStart = (name) => {
+  if (!name.startsWith("digit_")) return;
+  showDigits(videoDigits, videoDigitIndex++);
+  speakVoice(name.slice(6));
+};
+player.onIdle = () => {
+  videoDigits = "";
+  videoDigitIndex = 0;
+  digitOverlay.hidden = true;
+};
+
 async function speakDigits(text: string): Promise<void> {
   const digits = text.replace(/[^0-9]/g, "");
   if (!digits) return;
+  if (mode === "video") {
+    videoDigits += digits;
+    await player.enqueue(digits.split("").map((d) => `digit_${d}`));
+    return;
+  }
   if (speaking) {
     speakQueue.push(digits);
     return;
@@ -488,6 +613,18 @@ try {
 
 // ---- boot --------------------------------------------------------------------
 
+void api.health().then((h) => {
+  if (h?.ok && h.engine) {
+    serverEngine = h.engine;
+    engineLine.textContent = `AI 视频引擎已连接（${h.engine}）：上传后会自动生成更真实的视频版。`;
+    engineLine.className = "engine ok";
+  } else {
+    engineLine.textContent = h?.error
+      ? `AI 视频引擎不可用：${h.error}`
+      : "未连接 AI 视频引擎，使用即时 3D 模式。部署 server/ 后可获得更真实的视频版。";
+  }
+});
+
 getLandmarker()
   .then(() => setStatus("人脸模型已就绪，请上传照片。", "ok"))
   .catch((err) => {
@@ -505,7 +642,20 @@ declare global {
       blink: typeof blink;
       speakDigits: typeof speakDigits;
       landmarks: () => Landmark[] | null;
+      mode: () => Mode;
+      setMode: typeof setMode;
+      player: VideoPlayer;
     };
   }
 }
-window.__face3d = { processImage, params, viewer, blink, speakDigits, landmarks: () => lastLandmarks };
+window.__face3d = {
+  processImage,
+  params,
+  viewer,
+  blink,
+  speakDigits,
+  landmarks: () => lastLandmarks,
+  mode: () => mode,
+  setMode,
+  player,
+};

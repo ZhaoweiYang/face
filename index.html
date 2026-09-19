@@ -25,6 +25,15 @@
             </div>
           </label>
           <div id="status" class="status" role="status" aria-live="polite">正在加载人脸模型…</div>
+          <div id="gen" class="gen" hidden>
+            <div class="gen-head"><span id="gen-label">AI 视频生成中…</span><span id="gen-pct">0%</span></div>
+            <div class="gen-bar"><div id="gen-fill" class="gen-fill"></div></div>
+          </div>
+          <div id="mode" class="mode" hidden>
+            <button id="mode-video" class="mode-btn" type="button">AI 视频</button>
+            <button id="mode-3d" class="mode-btn" type="button">即时 3D</button>
+          </div>
+          <div id="engine" class="engine">正在连接 AI 视频引擎…</div>
         </section>
 
         <section class="block">
@@ -114,6 +123,7 @@
           <div class="spinner"></div>
           <div id="stage-loading-text">正在识别人脸…</div>
         </div>
+        <div id="media" class="media" hidden></div>
         <div id="digit-overlay" class="digit-overlay" hidden></div>
         <button id="btn-fullscreen" class="fs-btn" type="button" title="全屏 (F)" aria-label="全屏">⛶</button>
         <div id="toolbar" class="toolbar" hidden>

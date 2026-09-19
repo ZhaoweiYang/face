@@ -1,0 +1,9 @@
+# Web service dependencies. The LivePortrait engine additionally needs the
+# dependencies from the LivePortrait repository (see server/README.md).
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+numpy
+pillow
+imageio
+imageio-ffmpeg
