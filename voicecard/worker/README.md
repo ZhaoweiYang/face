@@ -16,28 +16,25 @@
 
 ## 一、部署
 
-D1 数据库和 R2 存储桶已经在账号里建好，表结构也已初始化，`wrangler.jsonc` 里填好了 ID。剩下两种方式二选一：
+D1 数据库和 R2 存储桶已经在账号里建好，表结构也已初始化，`wrangler.jsonc` 里填好了 ID。
 
-### 方式 A：从 GitHub 自动部署（推荐，无需本地环境）
+### 方式 A：GitHub Actions 自动部署（推荐）
 
-1. 打开 Cloudflare 控制台 → **Workers & Pages** → **Create** → **Import a repository**。
-2. 授权并选择 `ZhaoweiYang/face` 仓库。
-3. 按下表填写：
+仓库里的 [`.github/workflows/voicecard.yml`](../../.github/workflows/voicecard.yml)：
 
-   | 设置 | 值 |
-   | --- | --- |
-   | Project name | `voicecard`（必须与 `wrangler.jsonc` 的 `name` 一致） |
-   | Production branch | 含有本目录的分支 |
-   | Root directory | `voicecard/worker` |
-   | Build command | 留空 |
-   | Deploy command | `npx wrangler deploy` |
+- 每次 push / PR：运行 Python 和 Worker 的全部测试；
+- push 到**默认分支**（或在 Actions 页面手动 *Run workflow*）：测试通过后应用 D1 迁移并部署 Worker。
 
-4. 保存后自动构建。之后每次往该分支 push 都会自动重新部署。
-5. 部署完成后网址为 `https://voicecard.<你的子域>.workers.dev`。
+只需做一次设置：
 
-> 以后若新增 `migrations/0002_*.sql`，在本地执行一次
-> `npx wrangler d1 migrations apply voicecard-db --remote`，或把 Deploy command 改成 `npm run deploy`
-> （需要构建 token 有 D1 编辑权限）。
+1. **创建 Cloudflare API Token**：控制台右上角头像 → **My Profile** → **API Tokens** → **Create Token** →
+   选模板 **Edit Cloudflare Workers** → 在 *Permissions* 里再加一行 **Account · D1 · Edit** → 创建并复制 token。
+2. **查 Account ID**：控制台 **Workers & Pages** 页面右侧栏的 *Account ID*。
+3. **加到 GitHub**：仓库 **Settings** → **Secrets and variables** → **Actions** → **New repository secret**，添加
+   - `CLOUDFLARE_API_TOKEN`：上一步的 token
+   - `CLOUDFLARE_ACCOUNT_ID`：Account ID
+4. 合并 PR（或往默认分支 push），在 **Actions** 页面看到 *VoiceCard* 跑完即部署成功，
+   网址显示在运行摘要里：`https://voicecard.<你的子域>.workers.dev`。
 
 ### 方式 B：本地命令行部署
 
