@@ -29,6 +29,16 @@
   box-sizing: border-box;
 }
 
+/* Components set their own display; `hidden` must still win. */
+[hidden] {
+  display: none !important;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 html,
 body {
   margin: 0;

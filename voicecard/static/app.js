@@ -219,23 +219,16 @@ function recorder(limits) {
   const box = el("div", { class: "recorder" });
 
   if (!supported) {
-    // Fallback: the system recorder / file picker.
-    const input = el("input", { type: "file", accept: "audio/*", capture: true });
-    input.addEventListener("change", async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        toast("上传中…");
-        await uploadBlob(file, 0, file.name);
-        toast("留言已上传");
-        load();
-      } catch (err) {
-        toast(err.message);
-      }
-    });
+    // Messages are recorded with the phone's microphone only; some in-app browsers
+    // (and plain-http pages) don't expose it, so point people to the system browser.
     box.append(
-      el("p", { class: "muted" }, window.isSecureContext ? "当前浏览器不支持网页录音，可以选择一段录音文件上传：" : "网页录音需要 HTTPS，请选择一段录音文件上传："),
-      input,
+      el(
+        "p",
+        { class: "muted" },
+        window.isSecureContext
+          ? "这个浏览器不能录音。请用手机自带的 Safari（iPhone）或 Chrome（安卓）打开这张卡片。"
+          : "录音需要 HTTPS 安全连接，请通过卡片上的网址打开。",
+      ),
     );
     return box;
   }
