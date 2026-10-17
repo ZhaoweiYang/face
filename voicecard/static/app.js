@@ -195,8 +195,9 @@ function ownerPanel(card) {
 
 function pickMimeType() {
   if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
-  // Opus/webm on Android & desktop, AAC/mp4 on iOS Safari.
-  return ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
+  // AAC/mp4 first: it plays everywhere (iOS Safari records it; recent Chrome can too).
+  // Otherwise Opus/webm, which the Python server can transcode with ffmpeg.
+  return ["audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm"].find((t) => MediaRecorder.isTypeSupported(t)) || "";
 }
 
 function extFor(type) {

@@ -34,7 +34,16 @@
 - 上传、删除、改标题都校验 `owner_id`；其他人（包括其他登录用户）只能收听。
 - 主人换手机时，在卡片页底部点"我是卡片主人，登录后留言"即可。
 
-## 快速开始
+## 两种部署方式
+
+| | 说明 |
+| --- | --- |
+| **Cloudflare Workers**（推荐） | 无需服务器，D1 + R2 + Workers，免费额度足够。见 [worker/README.md](worker/README.md) |
+| **自建服务器**（下文） | Python FastAPI + SQLite，适合放在自己的机器上 |
+
+两者接口一致、共用 `static/` 前端。
+
+## 快速开始（自建服务器）
 
 ```bash
 cd voicecard
@@ -106,11 +115,12 @@ voicecard/
 ├── security.py      令牌生成与哈希、scrypt 密码、滑动窗口限流
 ├── cli.py           生成 / 列出 / 解除认领 / 停用卡片
 ├── static/          手机网页（原生 JS，无需构建）：收听、登录认领、录音上传
+├── worker/          Cloudflare Workers 版后端（D1 + R2）
 └── tests/           pytest：防遍历、认领竞争、权限、Range 播放等
 ```
 
-录音使用浏览器 `MediaRecorder`（安卓 / 桌面是 Opus-webm，iOS Safari 是 AAC-mp4），
-不支持时退回到系统录音 / 选择音频文件。服务端按文件头识别格式（不信任客户端声明的类型），
+录音使用浏览器 `MediaRecorder`，优先录 AAC-mp4（各平台都能播放），不支持时用 Opus-webm；
+都不支持时退回到系统录音 / 选择音频文件。服务端按文件头识别格式（不信任客户端声明的类型），
 音频接口支持 HTTP Range，iOS Safari 才能正常播放和拖动进度。
 
 其他安全细节：密码用 scrypt 加盐哈希；登录失败按 IP 限流且对不存在的用户做同样耗时的校验；
