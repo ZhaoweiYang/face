@@ -3,7 +3,7 @@
 上传一张正面人像照片，在浏览器里生成一个可以动的 3D 人脸，点快捷按钮即可 **眨眼、张嘴、左看、右看**。
 全部计算在本地完成，照片不会上传到任何服务器。
 
-> 另见 [voicecard/](voicecard/README.md)：贴在照片背后的 NFC 卡片 + 语音留言（首位登录者认领上传权限，其他人触碰收听）。
+> 另见 [tapstory/](tapstory/README.md)：TapStory，贴在照片背后的 NFC 卡片 + 家庭语音留言（Cloudflare Workers）。
 
 ## 两种模式
 
