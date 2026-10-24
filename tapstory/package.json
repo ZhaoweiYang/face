@@ -1,0 +1,25 @@
+{
+  "name": "tapstory",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TapStory: NFC photo cards with family voice messages (Cloudflare Workers + D1 + R2)",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build && wrangler d1 migrations apply tapstory-db --local && wrangler dev",
+    "deploy": "vite build && wrangler d1 migrations apply tapstory-db --remote && wrangler deploy",
+    "cards": "node scripts/cards.mjs",
+    "typecheck": "wrangler types && tsc -p tsconfig.worker.json && tsc -p tsconfig.web.json",
+    "test": "vite build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@preact/preset-vite": "^2.10.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5",
+    "wrangler": "^4.151.1"
+  }
+}

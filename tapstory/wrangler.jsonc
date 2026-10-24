@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "tapstory",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "upload_source_maps": true,
+  "observability": { "enabled": true },
+
+  // The mobile web app built by Vite (npm run build). The Worker runs first for every
+  // request so it can add security headers and serve index.html for app routes.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tapstory-db",
+      "database_id": "61a93c48-874d-4dc8-8e4f-38925552cfcf",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "r2_buckets": [{ "binding": "AUDIO", "bucket_name": "tapstory-audio" }],
+
+  // Per Cloudflare location; period must be 10 or 60 seconds.
+  "ratelimits": [
+    // Unknown card / invite tokens per IP: ~10 guesses a minute against a 2^128 space.
+    { "name": "RL_MISS", "namespace_id": "7201", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_API", "namespace_id": "7202", "simple": { "limit": 300, "period": 60 } },
+    { "name": "RL_EMAIL", "namespace_id": "7203", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RL_VERIFY", "namespace_id": "7204", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_UPLOAD", "namespace_id": "7205", "simple": { "limit": 10, "period": 60 } }
+  ],
+
+  "vars": {
+    "SESSION_DAYS": "60",
+    "MAX_SECONDS": "180",
+    "MAX_AUDIO_MB": "10",
+    // Sender for login codes (needs the RESEND_API_KEY secret and a verified domain).
+    "EMAIL_FROM": "TapStory <login@example.com>",
+    // "1" = TEST MODE: the email login code is shown on screen instead of being sent,
+    // so anyone can sign in as any address. Turn off (set "0") before real users arrive.
+    "EMAIL_DEV_CODES": "1",
+    // "demo" = upgrading to the family plan succeeds without payment. Replace with a
+    // real payment provider before charging customers.
+    "PAYMENT_MODE": "demo"
+  }
+
+  // Custom domain (recommended; *.workers.dev is unreliable from mainland China):
+  // "routes": [{ "pattern": "tap.example.com", "custom_domain": true }]
+}
